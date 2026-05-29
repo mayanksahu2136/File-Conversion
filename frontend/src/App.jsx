@@ -110,8 +110,7 @@ export default function App() {
 
       {/* Navbar */}
 
-      <nav className="flex items-center justify-between px-8 py-6 border-b border-white/10 backdrop-blur-lg sticky top-0 bg-black/40 z-50">
-
+      <nav className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-8 py-5 border-b border-white/10 backdrop-blur-lg sticky top-0 bg-black/40 z-50">
         <h1 className="text-3xl font-bold tracking-wide lowercase">
           maygamstools
         </h1>
@@ -131,7 +130,7 @@ export default function App() {
 
         <div className="absolute w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl top-10"></div>
 
-        <h1 className="text-6xl md:text-7xl font-black leading-tight max-w-5xl relative z-10">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight max-w-5xl relative z-10">
 
           Convert Files <br />
 
@@ -161,7 +160,7 @@ export default function App() {
 
       {/* Features Section */}
 
-      <motion.section className="grid md:grid-cols-3 gap-8 px-8 py-16 max-w-7xl mx-auto">
+      <motion.section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-8 py-16 max-w-7xl mx-auto">
 
         <div className="bg-white/5 border border-white/10 rounded-3xl p-8 hover:scale-105 transition">
 
@@ -214,15 +213,15 @@ export default function App() {
         className="px-6 py-20"
       >
 
-        <div className="max-w-3xl mx-auto bg-white/5 border border-white/10 backdrop-blur-2xl rounded-[40px] p-10 shadow-2xl">
+        <div className="max-w-3xl mx-auto bg-white/5 border border-white/10 backdrop-blur-2xl rounded-[40px] p-5 sm:p-8 md:p-10 shadow-2xl">
 
-          <h2 className="text-4xl font-bold text-center mb-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-10">
             File Converter
           </h2>
 
           {/* Buttons */}
 
-          <div className="flex gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row gap-4 mb-8">
 
             <button
               onClick={() => {
@@ -282,7 +281,7 @@ export default function App() {
 
           <label
             htmlFor="fileUpload"
-            className="border-2 border-dashed border-white/20 rounded-3xl p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition"
+            className="border-2 border-dashed border-white/20 rounded-3xl p-6 sm:p-8 md:p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition"
           >
 
             <input
@@ -374,7 +373,7 @@ export default function App() {
 
       <motion.section className="max-w-5xl mx-auto px-6 py-20">
 
-        <h2 className="text-5xl font-bold text-center mb-14">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-14">
           Frequently Asked Questions
         </h2>
 
@@ -424,7 +423,7 @@ export default function App() {
 
       <footer className="border-t border-white/10 py-8 text-center text-gray-500">
 
-        <div className="flex items-center justify-center gap-3 mb-3">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-3">
 
           <FaGithub />
 
