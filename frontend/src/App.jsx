@@ -77,10 +77,11 @@ export default function App() {
 
       a.href = url;
 
+      const originalName = selectedFile.name.split(".")[0];
       if (mode === "img-to-pdf") {
-        a.download = "converted.pdf";
+        a.download = `${originalName}.pdf`;
       } else {
-        a.download = `converted.${imageFormat}`;
+        a.download = `${originalName}.${imageFormat}`;
       }
 
       document.body.appendChild(a);
