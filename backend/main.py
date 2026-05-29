@@ -65,10 +65,7 @@ async def pdf_to_img(
     with open(pdf_path, "wb") as f:
         f.write(await file.read())
 
-    images = convert_from_path(
-        pdf_path,
-        poppler_path=r"C:\Program Files\poppler-26.02.0\Library\bin"
-    )
+    images = convert_from_path(pdf_path)
 
     first_image = images[0]
 
