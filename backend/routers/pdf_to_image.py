@@ -1,11 +1,25 @@
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, Form, HTTPException
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    BackgroundTasks,
+    Form,
+    HTTPException
+)
+
 from fastapi.responses import FileResponse
 
-from pdf2image import convert_from_path
+
+from pdf2image import (
+    convert_from_path,
+    pdfinfo_from_path
+)
 from zipfile import ZipFile
 
 import os
 import uuid
+import time
+
 
 router = APIRouter()
 
@@ -18,14 +32,29 @@ MAX_PAGES = 100
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CONVERTED_DIR, exist_ok=True)
 
+PILLOW_FORMATS = {
+    "jpg": "JPEG",
+    "jpeg": "JPEG",
+    "png": "PNG"
+}
+
 
 def cleanup_files(*paths):
     for path in paths:
-        if path and os.path.exists(path):
-            try:
+        try:
+            if path and os.path.exists(path):
                 os.remove(path)
-            except:
-                pass
+        except Exception:
+            pass
+
+
+def delayed_cleanup(*paths):
+    """
+    Delay cleanup to ensure download is completed
+    before files are removed.
+    """
+    time.sleep(60)
+    cleanup_files(*paths)
 
 
 @router.post("/pdf-to-img")
@@ -35,18 +64,27 @@ async def pdf_to_img(
     format: str = Form("jpg")
 ):
 
-    # Validate format
-    allowed_formats = ["jpg", "jpeg", "png"]
+    format = format.lower()
 
-    if format.lower() not in allowed_formats:
+    # Validate output format
+    if format not in PILLOW_FORMATS:
         raise HTTPException(
             status_code=400,
             detail="Supported formats: jpg, jpeg, png"
         )
 
+    # Validate uploaded file type
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are allowed"
+        )
+
     unique_name = str(uuid.uuid4())
 
-    original_name = os.path.splitext(file.filename)[0]
+    original_name = os.path.splitext(
+        file.filename
+    )[0]
 
     pdf_path = os.path.join(
         UPLOAD_DIR,
@@ -56,7 +94,7 @@ async def pdf_to_img(
     # Read uploaded file
     content = await file.read()
 
-    # File size limit
+    # Validate size
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
@@ -69,16 +107,15 @@ async def pdf_to_img(
 
     try:
 
-        images = convert_from_path(
-            pdf_path,
-            dpi=150
-        )
+        # Get PDF information first
+        pdf_info = pdfinfo_from_path(pdf_path)
 
-        # Page limit
-        if len(images) > MAX_PAGES:
+        total_pages = pdf_info.get("Pages", 0)
+
+        if total_pages > MAX_PAGES:
 
             background_tasks.add_task(
-                cleanup_files,
+                delayed_cleanup,
                 pdf_path
             )
 
@@ -87,8 +124,14 @@ async def pdf_to_img(
                 detail="PDF exceeds 100 pages limit"
             )
 
+        # Convert PDF pages
+        images = convert_from_path(
+            pdf_path,
+            dpi=150
+        )
+
         # SINGLE PAGE PDF
-        if len(images) == 1:
+        if total_pages == 1:
 
             image_path = os.path.join(
                 CONVERTED_DIR,
@@ -97,19 +140,19 @@ async def pdf_to_img(
 
             images[0].save(
                 image_path,
-                format.upper()
+                PILLOW_FORMATS[format]
             )
 
             background_tasks.add_task(
-                cleanup_files,
+                delayed_cleanup,
                 pdf_path,
                 image_path
             )
 
             return FileResponse(
                 path=image_path,
-                media_type=f"image/{format}",
-                filename=f"{original_name}.{format}"
+                filename=f"{original_name}.{format}",
+                media_type=f"image/{format}"
             )
 
         # MULTI PAGE PDF → ZIP
@@ -121,29 +164,35 @@ async def pdf_to_img(
 
         temp_files = []
 
-        with ZipFile(zip_path, "w") as zip_file:
+        with ZipFile(
+            zip_path,
+            "w"
+        ) as zip_file:
 
-            for index, image in enumerate(images, start=1):
+            for page_number, image in enumerate(
+                images,
+                start=1
+            ):
 
                 page_file = os.path.join(
                     CONVERTED_DIR,
-                    f"{unique_name}_page_{index}.{format}"
+                    f"{unique_name}_page_{page_number}.{format}"
                 )
 
                 image.save(
                     page_file,
-                    format.upper()
+                    PILLOW_FORMATS[format]
                 )
 
                 zip_file.write(
                     page_file,
-                    arcname=f"page_{index}.{format}"
+                    arcname=f"page_{page_number}.{format}"
                 )
 
                 temp_files.append(page_file)
 
         background_tasks.add_task(
-            cleanup_files,
+            delayed_cleanup,
             pdf_path,
             zip_path,
             *temp_files
@@ -151,14 +200,17 @@ async def pdf_to_img(
 
         return FileResponse(
             path=zip_path,
-            media_type="application/zip",
-            filename=f"{original_name}.zip"
+            filename=f"{original_name}.zip",
+            media_type="application/octet-stream"
         )
+
+    except HTTPException:
+        raise
 
     except Exception as e:
 
         background_tasks.add_task(
-            cleanup_files,
+            delayed_cleanup,
             pdf_path
         )
 
