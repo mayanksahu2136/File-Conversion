@@ -2,7 +2,8 @@ import { useState } from "react";
 import { FaFilePdf } from "react-icons/fa";
 import { ClipLoader } from "react-spinners";
 import toast from "react-hot-toast";
-import { API_URL } from "../config";
+const API_URL =
+  "https://file-conversion-backend-3vbm.onrender.com";
 
 export default function PdfToImg() {
   const [selectedFile, setSelectedFile] = useState(null);
