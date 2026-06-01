@@ -169,13 +169,13 @@ export default function PdfToImg() {
                   </h3>
 
                   <img
-                    src={`${API_URL}${img.download_url}`}
+                    src={img.download_url.startsWith("http") ? img.download_url : `${API_URL}${img.download_url}`}
                     alt={`Page ${img.page}`}
                     className="w-full rounded-xl border border-white/10"
                   />
 
                   <a
-                    href={`${API_URL}${img.download_url}`}
+                    href={img.download_url.startsWith("http") ? img.download_url : `${API_URL}${img.download_url}`}
                     target="_blank"
                     rel="noreferrer"
                     download
