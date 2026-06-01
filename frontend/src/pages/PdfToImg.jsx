@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { FaFilePdf } from "react-icons/fa";
-import { ClipLoader } from "react-spinners";
 import toast from "react-hot-toast";
-const API_URL =
-  "https://file-conversion-backend-3vbm.onrender.com";
+import { FaFilePdf } from "react-icons/fa";
+
+import PageHeader from "../components/ui/PageHeader";
+import UploadBox from "../components/ui/UploadBox";
+import Button from "../components/ui/Button";
+import ResultCard from "../components/ui/ResultCard";
+import EmptyState from "../components/ui/EmptyState";
+import SectionTitle from "../components/ui/SectionTitle";
+
+const API_URL = "https://file-conversion-backend-3vbm.onrender.com";
 
 export default function PdfToImg() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -11,14 +17,10 @@ export default function PdfToImg() {
   const [imageFormat, setImageFormat] = useState("png");
   const [images, setImages] = useState([]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-
-    if (file) {
-      setSelectedFile(file);
-      setImages([]);
-    }
-  };
+  function handleFileChange(file) {
+    setSelectedFile(file);
+    setImages([]);
+  }
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { FaFilePdf } from "react-icons/fa";

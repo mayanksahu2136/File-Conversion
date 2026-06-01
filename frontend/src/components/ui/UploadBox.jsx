@@ -32,8 +32,15 @@ export default function UploadBox({ accept = ".pdf", file, onFileChange }) {
         onDragLeave={() => setDrag(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current.click();
+          }
+        }}
         role="button"
         tabIndex={0}
+        aria-label="Upload PDF"
         className={
           "glass-card border border-white/8 rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all " +
           (drag ? "ring-2 ring-purple-500/40" : "hover:ring-2 hover:ring-purple-500/20")
