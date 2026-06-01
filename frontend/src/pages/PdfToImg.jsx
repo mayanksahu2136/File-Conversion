@@ -2,17 +2,20 @@ import { useState } from "react";
 import { FaFilePdf } from "react-icons/fa";
 import { ClipLoader } from "react-spinners";
 import toast from "react-hot-toast";
+import { API_URL } from "../config";
 
 export default function PdfToImg() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [imageFormat, setImageFormat] = useState("png");
+  const [images, setImages] = useState([]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
 
     if (file) {
       setSelectedFile(file);
+      setImages([]);
     }
   };
 
@@ -26,42 +29,36 @@ export default function PdfToImg() {
       setLoading(true);
 
       const formData = new FormData();
-
       formData.append("file", selectedFile);
       formData.append("format", imageFormat);
 
       const response = await fetch(
-        "https://file-conversion-backend-3vbm.onrender.com/pdf-to-img",
+        `${API_URL}/pdf-to-img`,
         {
           method: "POST",
           body: formData,
         }
       );
 
-      const blob = await response.blob();
+      const data = await response.json();
 
-      const url = window.URL.createObjectURL(blob);
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Conversion failed"
+        );
+      }
 
-      const a = document.createElement("a");
+      setImages(data.images || []);
 
-      a.href = url;
+      toast.success(
+        `${data.total_pages} pages converted successfully`
+      );
 
-      const originalName = selectedFile.name.split(".")[0];
-
-      a.download = `${originalName}.${imageFormat}`;
-
-      document.body.appendChild(a);
-
-      a.click();
-
-      a.remove();
-
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Image downloaded");
     } catch (error) {
       console.error(error);
-      toast.error("Conversion failed");
+      toast.error(
+        error.message || "Conversion failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -70,7 +67,7 @@ export default function PdfToImg() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-purple-950 text-white px-4 py-12">
 
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
         <h1 className="text-4xl font-bold text-center mb-4">
           PDF to Image Converter
@@ -84,7 +81,9 @@ export default function PdfToImg() {
 
           <select
             value={imageFormat}
-            onChange={(e) => setImageFormat(e.target.value)}
+            onChange={(e) =>
+              setImageFormat(e.target.value)
+            }
             className="w-full mb-6 p-4 rounded-2xl bg-black border border-white/10"
           >
             <option value="png">PNG</option>
@@ -96,7 +95,6 @@ export default function PdfToImg() {
             htmlFor="pdfUpload"
             className="border-2 border-dashed border-white/20 rounded-3xl p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition"
           >
-
             <input
               type="file"
               id="pdfUpload"
@@ -132,7 +130,6 @@ export default function PdfToImg() {
 
               </div>
             )}
-
           </label>
 
           <button
@@ -140,19 +137,59 @@ export default function PdfToImg() {
             disabled={loading}
             className="w-full mt-8 bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl font-bold text-lg"
           >
-
             {loading ? (
               <ClipLoader
                 color="#ffffff"
                 size={24}
               />
             ) : (
-              "Convert to Image"
+              "Convert to Images"
             )}
-
           </button>
-
         </div>
+
+        {images.length > 0 && (
+          <div className="mt-10">
+
+            <h2 className="text-3xl font-bold mb-6">
+              Converted Pages
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              {images.map((img) => (
+                <div
+                  key={img.page}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-4"
+                >
+
+                  <h3 className="font-semibold mb-3">
+                    Page {img.page}
+                  </h3>
+
+                  <img
+                    src={`${API_URL}${img.download_url}`}
+                    alt={`Page ${img.page}`}
+                    className="w-full rounded-xl border border-white/10"
+                  />
+
+                  <a
+                    href={`${API_URL}${img.download_url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                    className="block mt-4 text-center bg-purple-600 hover:bg-purple-700 py-2 rounded-xl"
+                  >
+                    Download
+                  </a>
+
+                </div>
+              ))}
+
+            </div>
+
+          </div>
+        )}
 
       </div>
 
