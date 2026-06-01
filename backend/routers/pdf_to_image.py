@@ -10,10 +10,29 @@ from fastapi import (
 from fastapi.responses import FileResponse
 
 
-from pdf2image import (
-    convert_from_path,
-    pdfinfo_from_path
-)
+try:
+    from pdf2image import (
+        convert_from_path,
+        pdfinfo_from_path
+    )
+except ImportError:
+    from pdf2image.pdf2image import (
+        convert_from_path,
+        pdfinfo_from_path
+    )
+
+try:
+    from pdf2image.exceptions import (
+        PDFInfoNotInstalledError,
+        PDFPageCountError,
+        PDFSyntaxError,
+        PDFPopplerTimeoutError,
+    )
+except Exception:
+    PDFInfoNotInstalledError = Exception
+    PDFPageCountError = Exception
+    PDFSyntaxError = Exception
+    PDFPopplerTimeoutError = Exception
 from zipfile import ZipFile
 
 import os
@@ -106,48 +125,28 @@ async def pdf_to_img(
         f.write(content)
 
     try:
+        # Allow overriding poppler binary location via environment
+        poppler_path = os.getenv("POPPLER_PATH", None)
 
         # Get PDF information first
-        pdf_info = pdfinfo_from_path(pdf_path)
+        pdf_info = pdfinfo_from_path(pdf_path, poppler_path=poppler_path)
 
         total_pages = pdf_info.get("Pages", 0)
 
         if total_pages > MAX_PAGES:
-
-            background_tasks.add_task(
-                delayed_cleanup,
-                pdf_path
-            )
-
-            raise HTTPException(
-                status_code=400,
-                detail="PDF exceeds 100 pages limit"
-            )
+            background_tasks.add_task(delayed_cleanup, pdf_path)
+            raise HTTPException(status_code=400, detail="PDF exceeds 100 pages limit")
 
         # Convert PDF pages
-        images = convert_from_path(
-            pdf_path,
-            dpi=150
-        )
+        images = convert_from_path(pdf_path, dpi=150, poppler_path=poppler_path)
 
         # SINGLE PAGE PDF
         if total_pages == 1:
+            image_path = os.path.join(CONVERTED_DIR, f"{unique_name}.{format}")
 
-            image_path = os.path.join(
-                CONVERTED_DIR,
-                f"{unique_name}.{format}"
-            )
+            images[0].save(image_path, PILLOW_FORMATS[format])
 
-            images[0].save(
-                image_path,
-                PILLOW_FORMATS[format]
-            )
-
-            background_tasks.add_task(
-                delayed_cleanup,
-                pdf_path,
-                image_path
-            )
+            background_tasks.add_task(delayed_cleanup, pdf_path, image_path)
 
             return FileResponse(
                 path=image_path,
@@ -156,47 +155,20 @@ async def pdf_to_img(
             )
 
         # MULTI PAGE PDF → ZIP
-
-        zip_path = os.path.join(
-            CONVERTED_DIR,
-            f"{unique_name}.zip"
-        )
-
+        zip_path = os.path.join(CONVERTED_DIR, f"{unique_name}.zip")
         temp_files = []
 
-        with ZipFile(
-            zip_path,
-            "w"
-        ) as zip_file:
+        with ZipFile(zip_path, "w") as zip_file:
+            for page_number, image in enumerate(images, start=1):
+                page_file = os.path.join(CONVERTED_DIR, f"{unique_name}_page_{page_number}.{format}")
 
-            for page_number, image in enumerate(
-                images,
-                start=1
-            ):
+                image.save(page_file, PILLOW_FORMATS[format])
 
-                page_file = os.path.join(
-                    CONVERTED_DIR,
-                    f"{unique_name}_page_{page_number}.{format}"
-                )
-
-                image.save(
-                    page_file,
-                    PILLOW_FORMATS[format]
-                )
-
-                zip_file.write(
-                    page_file,
-                    arcname=f"page_{page_number}.{format}"
-                )
+                zip_file.write(page_file, arcname=f"page_{page_number}.{format}")
 
                 temp_files.append(page_file)
 
-        background_tasks.add_task(
-            delayed_cleanup,
-            pdf_path,
-            zip_path,
-            *temp_files
-        )
+        background_tasks.add_task(delayed_cleanup, pdf_path, zip_path, *temp_files)
 
         return FileResponse(
             path=zip_path,
@@ -207,14 +179,25 @@ async def pdf_to_img(
     except HTTPException:
         raise
 
-    except Exception as e:
-
-        background_tasks.add_task(
-            delayed_cleanup,
-            pdf_path
-        )
-
+    except PDFInfoNotInstalledError:
+        background_tasks.add_task(delayed_cleanup, pdf_path)
         raise HTTPException(
             status_code=500,
-            detail=f"Conversion failed: {str(e)}"
+            detail=(
+                "Poppler not found. On Windows download poppler from "
+                "https://github.com/oschwartz10612/poppler-windows/releases and "
+                "set the POPPLER_PATH env var to the `bin` folder or add it to PATH."
+            )
         )
+
+    except PDFPopplerTimeoutError:
+        background_tasks.add_task(delayed_cleanup, pdf_path)
+        raise HTTPException(status_code=500, detail="Poppler timed out during conversion")
+
+    except PDFSyntaxError as e:
+        background_tasks.add_task(delayed_cleanup, pdf_path)
+        raise HTTPException(status_code=400, detail=f"PDF syntax error: {str(e)}")
+
+    except Exception as e:
+        background_tasks.add_task(delayed_cleanup, pdf_path)
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
